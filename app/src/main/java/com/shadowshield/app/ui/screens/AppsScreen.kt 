@@ -1,0 +1,151 @@
+package com.shadowshield.app.ui.screens
+
+import android.content.pm.PackageManager
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.shadowshield.app.data.AppInfo
+import com.shadowshield.app.ui.theme.*
+
+@Composable
+fun AppsScreen() {
+    val context = LocalContext.current
+    val pm = context.packageManager
+    
+    val apps = remember {
+        pm.getInstalledApplications(0).map { app ->
+            AppInfo(
+                packageName = app.packageName,
+                appName = pm.getApplicationLabel(app).toString(),
+                isSystemApp = (app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0,
+                permissions = try {
+                    pm.getPackageInfo(app.packageName, PackageManager.GET_PERMISSIONS)
+                        ?.requestedPermissions?.toList() ?: emptyList()
+                } catch (e: Exception) { emptyList() }
+            )
+        }.sortedBy { it.appName }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Installed Apps",
+            style = MaterialTheme.typography.headlineLarge,
+            color = ShieldCyan,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "${apps.size} applications monitored",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color.White.copy(alpha = 0.6f)
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(apps) { app ->
+                AppCard(appInfo = app)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppCard(appInfo: AppInfo) {
+    val dangerousPerms = appInfo.permissions.count { perm ->
+        perm.contains("READ_SMS") || perm.contains("READ_CONTACTS") ||
+        perm.contains("RECORD_AUDIO") || perm.contains("CAMERA") ||
+        perm.contains("ACCESS_FINE_LOCATION") || perm.contains("READ_CALL_LOG") ||
+        perm.contains("WRITE_EXTERNAL_STORAGE") || perm.contains("SYSTEM_ALERT_WINDOW")
+    }
+    
+    val riskColor = when {
+        dangerousPerms > 6 -> ThreatCritical
+        dangerousPerms > 4 -> ThreatHigh
+        dangerousPerms > 2 -> ThreatMedium
+        dangerousPerms > 0 -> ThreatLow
+        else -> ThreatSafe
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = ShieldSurface)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(riskColor.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (appInfo.isSystemApp) Icons.Default.Settings else Icons.Default.Android,
+                    contentDescription = null,
+                    tint = riskColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = appInfo.appName,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White
+                )
+                Text(
+                    text = appInfo.packageName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.5f)
+                )
+                if (dangerousPerms > 0) {
+                    Text(
+                        text = "$dangerousPerms sensitive permissions",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = riskColor
+                    )
+                }
+            }
+            
+            if (appInfo.isSystemApp) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color.White.copy(alpha = 0.1f)
+                ) {
+                    Text(
+                        text = "SYSTEM",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
