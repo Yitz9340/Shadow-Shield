@@ -1,0 +1,385 @@
+package com.shadowshield.app.ui.screens
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.shadowshield.app.data.BehavioralEvent
+import com.shadowshield.app.data.ThreatLevel
+import com.shadowshield.app.ui.theme.*
+import kotlinx.coroutines.delay
+
+@Composable
+fun DashboardScreen(
+    activeThreats: Int,
+    monitoredApps: Int,
+    securityScore: Int,
+    recentEvents: List<BehavioralEvent>,
+    isProtectionActive: Boolean,
+    onToggleProtection: () -> Unit
+) {
+    var animatedScore by remember { mutableIntStateOf(0) }
+    
+    LaunchedEffect(securityScore) {
+        animatedScore = 0
+        while (animatedScore < securityScore) {
+            animatedScore += 1
+            delay(20)
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            HeaderSection()
+        }
+        
+        item {
+            SecurityScoreCard(score = animatedScore)
+        }
+        
+        item {
+            ProtectionToggle(isActive = isProtectionActive, onToggle = onToggleProtection)
+        }
+        
+        item {
+            StatsRow(activeThreats = activeThreats, monitoredApps = monitoredApps)
+        }
+        
+        item {
+            Text(
+                text = "Recent Threats",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+        
+        if (recentEvents.isEmpty()) {
+            item {
+                EmptyThreatState()
+            }
+        } else {
+            items(recentEvents.take(5)) { event ->
+                ThreatEventCard(event = event)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeaderSection() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "ShadowShield",
+                style = MaterialTheme.typography.headlineLarge,
+                color = ShieldCyan,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Adaptive Behavioral Defense",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.Security,
+            contentDescription = "Shield",
+            tint = ShieldCyan,
+            modifier = Modifier.size(40.dp)
+        )
+    }
+}
+
+@Composable
+private fun SecurityScoreCard(score: Int) {
+    val scoreColor = when {
+        score >= 90 -> ThreatSafe
+        score >= 70 -> ThreatLow
+        score >= 50 -> ThreatMedium
+        score >= 30 -> ThreatHigh
+        else -> ThreatCritical
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = ShieldSurfaceVariant)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { score / 100f },
+                        modifier = Modifier.size(140.dp),
+                        color = scoreColor,
+                        trackColor = Color.White.copy(alpha = 0.1f),
+                        strokeWidth = 12.dp,
+                        strokeCap = StrokeCap.Round
+                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "$score",
+                            style = MaterialTheme.typography.displayLarge,
+                            color = scoreColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "SCORE",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = when {
+                        score >= 90 -> "System Secure"
+                        score >= 70 -> "Minor Concerns"
+                        score >= 50 -> "Attention Needed"
+                        score >= 30 -> "High Risk"
+                        else -> "Critical Threats"
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    color = scoreColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProtectionToggle(isActive: Boolean, onToggle: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isActive) ShieldCyan.copy(alpha = 0.15f) else Color(0xFF2D1B1B)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(if (isActive) ShieldCyan else ThreatCritical),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isActive) Icons.Default.Shield else Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = if (isActive) "Shield Active" else "Shield Inactive",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = if (isActive) ShieldCyan else ThreatCritical
+                    )
+                    Text(
+                        text = if (isActive) "Real-time monitoring enabled" else "Protection disabled",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                }
+            }
+            Switch(
+                checked = isActive,
+                onCheckedChange = { onToggle() },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = ShieldCyan,
+                    checkedTrackColor = ShieldCyan.copy(alpha = 0.5f)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatsRow(activeThreats: Int, monitoredApps: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StatCard(
+            icon = Icons.Default.Warning,
+            value = activeThreats.toString(),
+            label = "Active Threats",
+            color = ThreatHigh,
+            modifier = Modifier.weight(1f)
+        )
+        StatCard(
+            icon = Icons.Default.Apps,
+            value = monitoredApps.toString(),
+            label = "Monitored Apps",
+            color = ShieldCyan,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun StatCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = ShieldSurface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(28.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.displayMedium,
+                color = color,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThreatEventCard(event: BehavioralEvent) {
+    val threatColor = when (event.threatLevel) {
+        ThreatLevel.CRITICAL -> ThreatCritical
+        ThreatLevel.HIGH -> ThreatHigh
+        ThreatLevel.MEDIUM -> ThreatMedium
+        ThreatLevel.LOW -> ThreatLow
+        ThreatLevel.SAFE -> ThreatSafe
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = ShieldSurface)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(threatColor)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = event.packageName.substringAfterLast("."),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White
+                )
+                Text(
+                    text = event.description,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.7f),
+                    maxLines = 2
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${event.threatLevel.name} • ${(event.confidenceScore * 100).toInt()}% confidence",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = threatColor
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "Details",
+                tint = Color.White.copy(alpha = 0.5f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyThreatState() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = ThreatLow,
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "No Threats Detected",
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White.copy(alpha = 0.8f)
+            )
+            Text(
+                text = "Your device is currently secure",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.5f)
+            )
+        }
+    }
+}
