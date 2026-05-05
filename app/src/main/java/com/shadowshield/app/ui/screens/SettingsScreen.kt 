@@ -1,0 +1,181 @@
+package com.shadowshield.app.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.shadowshield.app.ui.theme.*
+
+@Composable
+fun SettingsScreen(
+    monitoringEnabled: Boolean,
+    deepScanEnabled: Boolean,
+    nfcGuardEnabled: Boolean,
+    deepfakeShieldEnabled: Boolean,
+    telemetryEnabled: Boolean,
+    onMonitoringChange: (Boolean) -> Unit,
+    onDeepScanChange: (Boolean) -> Unit,
+    onNfcGuardChange: (Boolean) -> Unit,
+    onDeepfakeShieldChange: (Boolean) -> Unit,
+    onTelemetryChange: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Settings",
+            style = MaterialTheme.typography.headlineLarge,
+            color = ShieldCyan,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        SettingsSection(title = "Protection Modules") {
+            SettingsToggleItem(
+                icon = Icons.Default.Visibility,
+                title = "Real-time Monitoring",
+                subtitle = "Continuous behavioral analysis",
+                checked = monitoringEnabled,
+                onCheckedChange = onMonitoringChange
+            )
+            SettingsToggleItem(
+                icon = Icons.Default.Search,
+                title = "Deep Behavioral Scan",
+                subtitle = "Advanced temporal pattern detection",
+                checked = deepScanEnabled,
+                onCheckedChange = onDeepScanChange
+            )
+            SettingsToggleItem(
+                icon = Icons.Default.Nfc,
+                title = "NFC Guardian",
+                subtitle = "Detect NFC relay attacks",
+                checked = nfcGuardEnabled,
+                onCheckedChange = onNfcGuardChange
+            )
+            SettingsToggleItem(
+                icon = Icons.Default.Phone,
+                title = "Deepfake Call Shield",
+                subtitle = "AI-powered voice anomaly detection",
+                checked = deepfakeShieldEnabled,
+                onCheckedChange = onDeepfakeShieldChange
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        SettingsSection(title = "Privacy") {
+            SettingsToggleItem(
+                icon = Icons.Default.Share,
+                title = "Anonymous Threat Sharing",
+                subtitle = "Contribute to collective intelligence",
+                checked = telemetryEnabled,
+                onCheckedChange = onTelemetryChange
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = ShieldSurfaceVariant)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "About ShadowShield",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = ShieldCyan
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Version 1.0.0-alpha\nAdaptive Behavioral Defense System\n\nUses temporal intent analysis to detect malware by monitoring logical ordering of actions over time, achieving detection of unknown variants without signature updates.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleLarge,
+        color = Color.White.copy(alpha = 0.8f),
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = ShieldSurface)
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsToggleItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = ShieldCyan,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.5f)
+                )
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = ShieldCyan,
+                checkedTrackColor = ShieldCyan.copy(alpha = 0.5f)
+            )
+        )
+    }
+}
