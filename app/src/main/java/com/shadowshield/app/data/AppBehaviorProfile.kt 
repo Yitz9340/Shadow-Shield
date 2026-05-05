@@ -1,0 +1,10 @@
+package com.shadowshield.app.data
+
+data class AppBehaviorProfile(
+    val packageName: String,
+    val baselineActions: List<String> = emptyList(),
+    val normalPermissionUsage: Set<String> = emptySet(),
+    val typicalNetworkTargets: Set<String> = emptySet(),
+    val uiInteractionPattern: String = "",
+    val lastUpdated: Long = System.currentTimeMillis()
+)
