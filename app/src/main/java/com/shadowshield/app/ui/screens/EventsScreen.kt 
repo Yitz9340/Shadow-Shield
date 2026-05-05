@@ -1,0 +1,226 @@
+package com.shadowshield.app.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.shadowshield.app.data.BehavioralEvent
+import com.shadowshield.app.data.ThreatLevel
+import com.shadowshield.app.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.*
+
+@Composable
+fun EventsScreen(
+    events: List<BehavioralEvent>,
+    onResolveEvent: (BehavioralEvent) -> Unit,
+    onBlockApp: (String) -> Unit
+) {
+    var filter by remember { mutableStateOf<ThreatLevel?>(null) }
+    
+    val filteredEvents = if (filter != null) {
+        events.filter { it.threatLevel == filter }
+    } else {
+        events
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Threat Events",
+            style = MaterialTheme.typography.headlineLarge,
+            color = ShieldCyan,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            FilterChip(
+                selected = filter == null,
+                onClick = { filter = null },
+                label = { Text("All") }
+            )
+            FilterChip(
+                selected = filter == ThreatLevel.CRITICAL,
+                onClick = { filter = ThreatLevel.CRITICAL },
+                label = { Text("Critical") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ThreatCritical.copy(alpha = 0.2f),
+                    selectedLabelColor = ThreatCritical
+                )
+            )
+            FilterChip(
+                selected = filter == ThreatLevel.HIGH,
+                onClick = { filter = ThreatLevel.HIGH },
+                label = { Text("High") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ThreatHigh.copy(alpha = 0.2f),
+                    selectedLabelColor = ThreatHigh
+                )
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        if (filteredEvents.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No events match this filter",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.5f)
+                )
+            }
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(filteredEvents) { event ->
+                    DetailedEventCard(
+                        event = event,
+                        onResolve = { onResolveEvent(event) },
+                        onBlock = { onBlockApp(event.packageName) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailedEventCard(
+    event: BehavioralEvent,
+    onResolve: () -> Unit,
+    onBlock: () -> Unit
+) {
+    val threatColor = when (event.threatLevel) {
+        ThreatLevel.CRITICAL -> ThreatCritical
+        ThreatLevel.HIGH -> ThreatHigh
+        ThreatLevel.MEDIUM -> ThreatMedium
+        ThreatLevel.LOW -> ThreatLow
+        ThreatLevel.SAFE -> ThreatSafe
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = ShieldSurface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = threatColor.copy(alpha = 0.2f),
+                        modifier = Modifier.padding(end = 12.dp)
+                    ) {
+                        Text(
+                            text = event.threatLevel.name,
+                            color = threatColor,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                    Text(
+                        text = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+                            .format(Date(event.timestamp)),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.5f)
+                    )
+                }
+                Text(
+                    text = "${(event.confidenceScore * 100).toInt()}%",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = threatColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Text(
+                text = event.packageName,
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White
+            )
+            Text(
+                text = event.description,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.7f)
+            )
+            
+            if (event.actionSequence.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.3f)
+                ) {
+                    Text(
+                        text = "Sequence: ${event.actionSequence}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = ShieldCyan,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (!event.isResolved) {
+                    OutlinedButton(
+                        onClick = onResolve,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = ThreatLow
+                        )
+                    ) {
+                        Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Resolve")
+                    }
+                }
+                OutlinedButton(
+                    onClick = onBlock,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = ThreatCritical
+                    )
+                ) {
+                    Icon(Icons.Default.Block, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Block App")
+                }
+            }
+        }
+    }
+}
