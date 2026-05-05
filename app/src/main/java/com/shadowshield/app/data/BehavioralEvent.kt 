@@ -1,0 +1,51 @@
+package com.shadowshield.app.data
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.TypeConverters
+
+@Entity(tableName = "behavioral_events")
+@TypeConverters(EventTypeConverter::class, ThreatLevelConverter::class)
+data class BehavioralEvent(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val timestamp: Long = System.currentTimeMillis(),
+    val packageName: String,
+    val eventType: EventType,
+    val threatLevel: ThreatLevel,
+    val description: String,
+    val actionSequence: String,
+    val confidenceScore: Float = 0.0f,
+    val isResolved: Boolean = false
+)
+
+enum class EventType {
+    PERMISSION_ABUSE,
+    NETWORK_ANOMALY,
+    UI_MANIPULATION,
+    NFC_RELAY,
+    TEMPORAL_PATTERN,
+    DATA_EXFILTRATION,
+    BACKGROUND_EXECUTION,
+    ACCESSIBILITY_ABUSE
+}
+
+enum class ThreatLevel {
+    SAFE, LOW, MEDIUM, HIGH, CRITICAL
+}
+
+class EventTypeConverter {
+    @androidx.room.TypeConverter
+    fun fromString(value: String): EventType = EventType.valueOf(value)
+    
+    @androidx.room.TypeConverter
+    fun toString(type: EventType): String = type.name
+}
+
+class ThreatLevelConverter {
+    @androidx.room.TypeConverter
+    fun fromString(value: String): ThreatLevel = ThreatLevel.valueOf(value)
+    
+    @androidx.room.TypeConverter
+    fun toString(level: ThreatLevel): String = level.name
+}
