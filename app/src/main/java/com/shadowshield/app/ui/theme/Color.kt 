@@ -1,0 +1,15 @@
+package com.shadowshield.app.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+val ShieldCyan = Color(0xFF00E5FF)
+val ShieldCyanDark = Color(0xFF00B8D4)
+val ShieldPink = Color(0xFFFF4081)
+val ShieldSurface = Color(0xFF0A1929)
+val ShieldSurfaceVariant = Color(0xFF132F4C)
+val ShieldBackground = Color(0xFF001E3C)
+val ThreatCritical = Color(0xFFFF1744)
+val ThreatHigh = Color(0xFFFF9100)
+val ThreatMedium = Color(0xFFFFD600)
+val ThreatLow = Color(0xFF00E676)
+val ThreatSafe = Color(0xFF00E5FF)
