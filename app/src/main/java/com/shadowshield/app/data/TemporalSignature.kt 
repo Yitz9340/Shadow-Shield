@@ -1,0 +1,65 @@
+package com.shadowshield.app.data
+
+data class TemporalSignature(
+    val id: String,
+    val name: String,
+    val actionSequence: List<String>,
+    val timeWindowMs: Long,
+    val threatLevel: ThreatLevel,
+    val description: String
+)
+
+object KnownSignatures {
+    val SIGNATURES = listOf(
+        TemporalSignature(
+            id = "TROJAN_SMS_STEALER",
+            name = "SMS Stealer Pattern",
+            actionSequence = listOf(
+                "READ_CONTACTS", "READ_SMS", "INTERNET_OPEN", "DATA_UPLOAD"
+            ),
+            timeWindowMs = 30000,
+            threatLevel = ThreatLevel.CRITICAL,
+            description = "Classic Trojan: contacts → SMS → network upload"
+        ),
+        TemporalSignature(
+            id = "PROMPT_SPY_UI",
+            name = "AI UI Manipulation",
+            actionSequence = listOf(
+                "ACCESSIBILITY_EVENT", "WINDOW_CONTENT_CHANGED", "CLICK", "TEXT_INPUT", "CLICK"
+            ),
+            timeWindowMs = 15000,
+            threatLevel = ThreatLevel.HIGH,
+            description = "Rapid UI automation suggesting AI-driven manipulation"
+        ),
+        TemporalSignature(
+            id = "NFC_RELAY_ATTACK",
+            name = "NFC Relay Pattern",
+            actionSequence = listOf(
+                "NFC_DISCOVERED", "NFC_TAG_READ", "NETWORK_OPEN", "DATA_TRANSMIT"
+            ),
+            timeWindowMs = 5000,
+            threatLevel = ThreatLevel.CRITICAL,
+            description = "NFC data relayed to remote server"
+        ),
+        TemporalSignature(
+            id = "BACKGROUND_DATA_THEFT",
+            name = "Background Exfiltration",
+            actionSequence = listOf(
+                "BACKGROUND_START", "READ_EXTERNAL_STORAGE", "CRYPTO_OP", "NETWORK_UPLOAD"
+            ),
+            timeWindowMs = 60000,
+            threatLevel = ThreatLevel.HIGH,
+            description = "Background process encrypting and uploading data"
+        ),
+        TemporalSignature(
+            id = "PERMISSION_ESCALATION",
+            name = "Permission Escalation",
+            actionSequence = listOf(
+                "REQUEST_PERMISSION", "GRANTED", "REQUEST_PERMISSION", "GRANTED", "REQUEST_PERMISSION"
+            ),
+            timeWindowMs = 120000,
+            threatLevel = ThreatLevel.MEDIUM,
+            description = "Rapid successive permission requests"
+        )
+    )
+}
