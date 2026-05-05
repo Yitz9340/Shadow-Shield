@@ -1,0 +1,39 @@
+package com.shadowshield.app.database
+
+import android.content.Context
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
+import com.shadowshield.app.data.BehavioralEvent
+import com.shadowshield.app.data.EventTypeConverter
+import com.shadowshield.app.data.ThreatLevelConverter
+
+@Database(
+    entities = [BehavioralEvent::class],
+    version = 1,
+    exportSchema = false
+)
+@TypeConverters(EventTypeConverter::class, ThreatLevelConverter::class)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun behavioralEventDao(): BehavioralEventDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        fun getDatabase(context: Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "shadowshield_db"
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
+}
