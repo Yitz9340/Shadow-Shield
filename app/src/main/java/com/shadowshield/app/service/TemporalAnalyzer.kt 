@@ -1,0 +1,199 @@
+package com.shadowshield.app.service
+
+import android.content.Context
+import android.content.pm.PackageManager
+import android.util.Log
+import com.shadowshield.app.data.BehavioralEvent
+import com.shadowshield.app.data.EventType
+import com.shadowshield.app.data.KnownSignatures
+import com.shadowshield.app.data.TemporalSignature
+import com.shadowshield.app.data.ThreatLevel
+import com.shadowshield.app.database.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+
+class TemporalAnalyzer(private val context: Context) {
+
+    private val dao = AppDatabase.getDatabase(context).behavioralEventDao()
+    private val eventQueue = ConcurrentLinkedQueue<AppAction>()
+    private val appActionHistory = ConcurrentHashMap<String, MutableList<AppAction>>()
+    private val _detectedThreats = MutableStateFlow<List<BehavioralEvent>>(emptyList())
+    val detectedThreats: StateFlow<List<BehavioralEvent>> = _detectedThreats
+
+    data class AppAction(
+        val packageName: String,
+        val action: String,
+        val timestamp: Long = System.currentTimeMillis()
+    )
+
+    fun recordAction(packageName: String, action: String) {
+        val appAction = AppAction(packageName, action)
+        eventQueue.offer(appAction)
+        
+        appActionHistory.getOrPut(packageName) { mutableListOf() }.add(appAction)
+        
+        val history = appActionHistory[packageName]
+        if (history != null && history.size > 100) {
+            history.removeAt(0)
+        }
+    }
+
+    suspend fun processPendingEvents() {
+        while (eventQueue.isNotEmpty()) {
+            val action = eventQueue.poll() ?: break
+            analyzeAction(action)
+        }
+    }
+
+    suspend fun startContinuousAnalysis() {
+        while (true) {
+            checkAllTemporalSignatures()
+            checkPermissionAnomalies()
+            checkNetworkAnomalies()
+            delay(10000)
+        }
+    }
+
+    private suspend fun analyzeAction(action: AppAction) {
+        when (action.action) {
+            "REQUEST_ROOT" -> emitThreat(action, EventType.PERMISSION_ABUSE, ThreatLevel.CRITICAL)
+            "INSTALL_UNKNOWN_APP" -> emitThreat(action, EventType.PERMISSION_ABUSE, ThreatLevel.HIGH)
+            "BIND_ACCESSIBILITY" -> emitThreat(action, EventType.ACCESSIBILITY_ABUSE, ThreatLevel.MEDIUM)
+        }
+    }
+
+    private suspend fun checkAllTemporalSignatures() {
+        for ((packageName, history) in appActionHistory) {
+            for (signature in KnownSignatures.SIGNATURES) {
+                val matchScore = calculateSignatureMatch(history, signature)
+                if (matchScore > 0.7f) {
+                    val threatLevel = when {
+                        matchScore > 0.95f -> ThreatLevel.CRITICAL
+                        matchScore > 0.85f -> ThreatLevel.HIGH
+                        else -> ThreatLevel.MEDIUM
+                    }
+                    
+                    val actionSeq = history.takeLast(signature.actionSequence.size)
+                        .joinToString(" → ") { it.action }
+                    
+                    emitThreat(
+                        AppAction(packageName, actionSeq),
+                        mapSignatureToEventType(signature),
+                        threatLevel,
+                        matchScore,
+                        signature.description
+                    )
+                }
+            }
+        }
+    }
+
+    private fun calculateSignatureMatch(
+        history: List<AppAction>,
+        signature: TemporalSignature
+    ): Float {
+        if (history.size < signature.actionSequence.size) return 0f
+
+        val recentActions = history.takeLast(signature.actionSequence.size)
+        val timeSpan = recentActions.last().timestamp - recentActions.first().timestamp
+        
+        if (timeSpan > signature.timeWindowMs) return 0f
+
+        var matches = 0
+        for (i in signature.actionSequence.indices) {
+            if (recentActions[i].action.contains(signature.actionSequence[i], ignoreCase = true)) {
+                matches++
+            }
+        }
+
+        return matches.toFloat() / signature.actionSequence.size
+    }
+
+    private suspend fun checkPermissionAnomalies() {
+        val pm = context.packageManager
+        val installedApps = pm.getInstalledApplications(PackageManager.GET_PERMISSIONS)
+        
+        for (app in installedApps) {
+            val permissions = try {
+                pm.getPackageInfo(app.packageName, PackageManager.GET_PERMISSIONS)?.requestedPermissions
+            } catch (e: Exception) { null } ?: continue
+
+            val dangerousCount = permissions.count { perm ->
+                perm.contains("READ_SMS") || perm.contains("READ_CONTACTS") ||
+                perm.contains("RECORD_AUDIO") || perm.contains("CAMERA") ||
+                perm.contains("ACCESS_FINE_LOCATION") || perm.contains("READ_CALL_LOG")
+            }
+
+            if (dangerousCount > 5 && !app.packageName.startsWith("com.android")) {
+                emitThreat(
+                    AppAction(app.packageName, "EXCESSIVE_PERMISSIONS: $dangerousCount"),
+                    EventType.PERMISSION_ABUSE,
+                    ThreatLevel.MEDIUM,
+                    0.6f,
+                    "App requests $dangerousCount sensitive permissions"
+                )
+            }
+        }
+    }
+
+    private suspend fun checkNetworkAnomalies() {
+        for ((packageName, history) in appActionHistory) {
+            val hasBackgroundStart = history.any { it.action == "BACKGROUND_START" }
+            val hasNetworkUpload = history.any { it.action == "NETWORK_UPLOAD" || it.action == "DATA_UPLOAD" }
+            val hasUserInteraction = history.any { it.action == "USER_INTERACTION" }
+
+            if (hasBackgroundStart && hasNetworkUpload && !hasUserInteraction) {
+                emitThreat(
+                    AppAction(packageName, "BACKGROUND_NETWORK"),
+                    EventType.DATA_EXFILTRATION,
+                    ThreatLevel.HIGH,
+                    0.75f,
+                    "Background network activity without user interaction"
+                )
+            }
+        }
+    }
+
+    private suspend fun emitThreat(
+        action: AppAction,
+        eventType: EventType,
+        threatLevel: ThreatLevel,
+        confidence: Float = 0.5f,
+        description: String = ""
+    ) {
+        val event = BehavioralEvent(
+            packageName = action.packageName,
+            eventType = eventType,
+            threatLevel = threatLevel,
+            description = description.ifEmpty { "${eventType.name}: ${action.action}" },
+            actionSequence = action.action,
+            confidenceScore = confidence
+        )
+
+        withContext(Dispatchers.IO) {
+            dao.insertEvent(event)
+        }
+
+        val current = _detectedThreats.value.toMutableList()
+        current.add(0, event)
+        _detectedThreats.value = current.take(50)
+
+        Log.w("ShadowShield", "THREAT: ${event.description} [${event.threatLevel}]")
+    }
+
+    private fun mapSignatureToEventType(signature: TemporalSignature): EventType {
+        return when (signature.id) {
+            "TROJAN_SMS_STEALER" -> EventType.DATA_EXFILTRATION
+            "PROMPT_SPY_UI" -> EventType.UI_MANIPULATION
+            "NFC_RELAY_ATTACK" -> EventType.NFC_RELAY
+            "BACKGROUND_DATA_THEFT" -> EventType.DATA_EXFILTRATION
+            "PERMISSION_ESCALATION" -> EventType.PERMISSION_ABUSE
+            else -> EventType.TEMPORAL_PATTERN
+        }
+    }
+}
