@@ -1,0 +1,54 @@
+package com.shadowshield.app.service
+
+import android.app.ActivityManager
+import android.app.usage.UsageStatsManager
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import java.util.concurrent.TimeUnit
+
+class AppUsageMonitor(private val context: Context) {
+
+    private val pm = context.packageManager
+    private val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+    private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+    private var lastScanTime = System.currentTimeMillis()
+
+    fun scanRunningApps() {
+        val runningApps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            activityManager.runningAppProcesses?.map { it.processName } ?: emptyList()
+        } else {
+            @Suppress("DEPRECATION")
+            activityManager.getRunningTasks(10).map { it.baseActivity?.packageName ?: "" }
+        }
+
+        val endTime = System.currentTimeMillis()
+        val startTime = endTime - TimeUnit.MINUTES.toMillis(5)
+        
+        val usageStats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY,
+            startTime,
+            endTime
+        )
+
+        for (stats in usageStats ?: emptyList()) {
+            if (stats.lastTimeUsed > lastScanTime) {
+                val packageName = stats.packageName
+                if (!isSystemPackage(packageName)) {
+                    // Record app activity
+                }
+            }
+        }
+
+        lastScanTime = endTime
+    }
+
+    private fun isSystemPackage(packageName: String): Boolean {
+        return try {
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+        } catch (e: Exception) {
+            true
+        }
+    }
+}
