@@ -1,0 +1,29 @@
+package com.shadowshield.app.worker
+
+import android.content.Context
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
+import com.shadowshield.app.database.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
+
+class BehavioralAnalysisWorker(
+    context: Context,
+    params: WorkerParameters
+) : CoroutineWorker(context, params) {
+
+    private val dao = AppDatabase.getDatabase(context).behavioralEventDao()
+
+    override suspend fun doWork(): Result {
+        return withContext(Dispatchers.IO) {
+            try {
+                val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(30)
+                dao.deleteOldEvents(cutoff)
+                Result.success()
+            } catch (e: Exception) {
+                Result.retry()
+            }
+        }
+    }
+}
