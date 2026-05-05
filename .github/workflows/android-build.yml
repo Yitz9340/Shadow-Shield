@@ -18,10 +18,21 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Build Debug APK
+    - name: Make gradlew executable
+      run: chmod +x gradlew
+
+    - name: Check project structure
       run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug
+        echo "=== Project Structure ==="
+        ls -la
+        echo "=== App Directory ==="
+        ls -la app/src/main/java/com/shadowshield/app/ || echo "WARNING: Path may be wrong"
+        echo "=== Gradle Files ==="
+        ls -la gradle/wrapper/
+
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug --stacktrace --info
+      continue-on-error: false
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
