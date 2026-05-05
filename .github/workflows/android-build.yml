@@ -18,21 +18,23 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Make gradlew executable
-      run: chmod +x gradlew
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: 8.5
 
-    - name: Check project structure
+    - name: Check files exist
       run: |
-        echo "=== Project Structure ==="
-        ls -la
-        echo "=== App Directory ==="
-        ls -la app/src/main/java/com/shadowshield/app/ || echo "WARNING: Path may be wrong"
-        echo "=== Gradle Files ==="
-        ls -la gradle/wrapper/
+        echo "=== Checking critical files ==="
+        ls -la build.gradle || echo "MISSING: build.gradle"
+        ls -la settings.gradle || echo "MISSING: settings.gradle"
+        ls -la app/build.gradle || echo "MISSING: app/build.gradle"
+        echo "=== Done ==="
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace --info
-      continue-on-error: false
+    - name: Build with Gradle
+      run: gradle assembleDebug --stacktrace
+      env:
+        GRADLE_OPTS: -Dorg.gradle.daemon=false
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
@@ -40,3 +42,4 @@ jobs:
         name: ShadowShield-APK
         path: app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
+
