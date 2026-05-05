@@ -1,0 +1,39 @@
+package com.shadowshield.app.database
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
+import androidx.room.Update
+import com.shadowshield.app.data.BehavioralEvent
+import com.shadowshield.app.data.ThreatLevel
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface BehavioralEventDao {
+    @Insert
+    suspend fun insertEvent(event: BehavioralEvent): Long
+
+    @Query("SELECT * FROM behavioral_events ORDER BY timestamp DESC")
+    fun getAllEvents(): Flow<List<BehavioralEvent>>
+
+    @Query("SELECT * FROM behavioral_events WHERE threatLevel IN (:levels) ORDER BY timestamp DESC")
+    fun getEventsByThreatLevel(levels: List<ThreatLevel>): Flow<List<BehavioralEvent>>
+
+    @Query("SELECT * FROM behavioral_events WHERE packageName = :packageName ORDER BY timestamp DESC")
+    fun getEventsForApp(packageName: String): Flow<List<BehavioralEvent>>
+
+    @Query("SELECT COUNT(*) FROM behavioral_events WHERE isResolved = 0 AND threatLevel IN ('HIGH', 'CRITICAL')")
+    fun getActiveThreatCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM behavioral_events")
+    fun getTotalEventCount(): Flow<Int>
+
+    @Update
+    suspend fun updateEvent(event: BehavioralEvent)
+
+    @Query("DELETE FROM behavioral_events WHERE timestamp < :cutoffTime")
+    suspend fun deleteOldEvents(cutoffTime: Long)
+
+    @Query("SELECT * FROM behavioral_events WHERE isResolved = 0 ORDER BY timestamp DESC LIMIT 10")
+    fun getRecentUnresolvedEvents(): Flow<List<BehavioralEvent>>
+}
