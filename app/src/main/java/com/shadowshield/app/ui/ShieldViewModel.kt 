@@ -1,9 +1,11 @@
 package com.shadowshield.app.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shadowshield.app.data.BehavioralEvent
+import com.shadowshield.app.data.EventType
 import com.shadowshield.app.data.ThreatLevel
 import com.shadowshield.app.database.AppDatabase
 import com.shadowshield.app.service.ShadowMonitorService
@@ -12,68 +14,113 @@ import kotlinx.coroutines.launch
 
 class ShieldViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val dao = AppDatabase.getDatabase(application).behavioralEventDao()
+    private val dao = try {
+        AppDatabase.getDatabase(application).behavioralEventDao()
+    } catch (e: Exception) {
+        Log.e("ShadowShield", "Failed to initialize ViewModel database: ${e.message}")
+        null
+    }
+    
     private val context = application.applicationContext
 
     private val _uiState = MutableStateFlow(ShieldUiState())
     val uiState: StateFlow<ShieldUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            dao.getRecentUnresolvedEvents().collect { events ->
-                _uiState.update { it.copy(recentEvents = events) }
-            }
-        }
-        
-        viewModelScope.launch {
-            dao.getAllEvents().collect { events ->
-                _uiState.update { 
-                    it.copy(
-                        allEvents = events,
-                        activeThreats = events.count { e -> 
-                            !e.isResolved && e.threatLevel in listOf(ThreatLevel.HIGH, ThreatLevel.CRITICAL) 
-                        }
-                    )
+        if (dao != null) {
+            viewModelScope.launch {
+                try {
+                    dao.getRecentUnresolvedEvents().catch { e ->
+                        Log.e("ShadowShield", "Error loading recent events: ${e.message}")
+                    }.collect { events ->
+                        _uiState.update { it.copy(recentEvents = events) }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ShadowShield", "Fatal error in recent events flow: ${e.message}")
                 }
-                updateSecurityScore()
             }
-        }
-        
-        viewModelScope.launch {
-            dao.getTotalEventCount().collect { count ->
-                _uiState.update { it.copy(monitoredApps = count.coerceAtLeast(1)) }
+            
+            viewModelScope.launch {
+                try {
+                    dao.getAllEvents().catch { e ->
+                        Log.e("ShadowShield", "Error loading all events: ${e.message}")
+                    }.collect { events ->
+                        _uiState.update { 
+                            it.copy(
+                                allEvents = events,
+                                activeThreats = events.count { e -> 
+                                    !e.isResolved && e.threatLevel in listOf(ThreatLevel.HIGH, ThreatLevel.CRITICAL) 
+                                }
+                            )
+                        }
+                        updateSecurityScore()
+                    }
+                } catch (e: Exception) {
+                    Log.e("ShadowShield", "Fatal error in all events flow: ${e.message}")
+                }
             }
+            
+            viewModelScope.launch {
+                try {
+                    dao.getTotalEventCount().catch { e ->
+                        Log.e("ShadowShield", "Error loading event count: ${e.message}")
+                    }.collect { count ->
+                        _uiState.update { it.copy(monitoredApps = count.coerceAtLeast(1)) }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ShadowShield", "Fatal error in count flow: ${e.message}")
+                }
+            }
+        } else {
+            _uiState.update { it.copy(securityScore = 50) }
         }
     }
 
     fun toggleProtection() {
-        val newState = !_uiState.value.isProtectionActive
-        _uiState.update { it.copy(isProtectionActive = newState) }
-        
-        if (newState) {
-            ShadowMonitorService.start(context)
-        } else {
-            ShadowMonitorService.stop(context)
+        try {
+            val newState = !_uiState.value.isProtectionActive
+            _uiState.update { it.copy(isProtectionActive = newState) }
+            
+            if (newState) {
+                ShadowMonitorService.start(context)
+            } else {
+                ShadowMonitorService.stop(context)
+            }
+        } catch (e: Exception) {
+            Log.e("ShadowShield", "Error toggling protection: ${e.message}")
+            _uiState.update { it.copy(isProtectionActive = false) }
         }
     }
 
     fun resolveEvent(event: BehavioralEvent) {
+        if (dao == null) return
+        
         viewModelScope.launch {
-            dao.updateEvent(event.copy(isResolved = true))
+            try {
+                dao.updateEvent(event.copy(isResolved = true))
+            } catch (e: Exception) {
+                Log.e("ShadowShield", "Error resolving event: ${e.message}")
+            }
         }
     }
 
     fun blockApp(packageName: String) {
+        if (dao == null) return
+        
         viewModelScope.launch {
-            val blockEvent = BehavioralEvent(
-                packageName = packageName,
-                eventType = com.shadowshield.app.data.EventType.PERMISSION_ABUSE,
-                threatLevel = ThreatLevel.CRITICAL,
-                description = "User blocked app",
-                actionSequence = "USER_BLOCK",
-                isResolved = true
-            )
-            dao.insertEvent(blockEvent)
+            try {
+                val blockEvent = BehavioralEvent(
+                    packageName = packageName,
+                    eventType = EventType.PERMISSION_ABUSE,
+                    threatLevel = ThreatLevel.CRITICAL,
+                    description = "User blocked app",
+                    actionSequence = "USER_BLOCK",
+                    isResolved = true
+                )
+                dao.insertEvent(blockEvent)
+            } catch (e: Exception) {
+                Log.e("ShadowShield", "Error blocking app: ${e.message}")
+            }
         }
     }
 
@@ -98,15 +145,19 @@ class ShieldViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun updateSecurityScore() {
-        val events = _uiState.value.allEvents
-        val unresolvedCritical = events.count { !it.isResolved && it.threatLevel == ThreatLevel.CRITICAL }
-        val unresolvedHigh = events.count { !it.isResolved && it.threatLevel == ThreatLevel.HIGH }
-        val unresolvedMedium = events.count { !it.isResolved && it.threatLevel == ThreatLevel.MEDIUM }
-        
-        val score = (100 - (unresolvedCritical * 25) - (unresolvedHigh * 15) - (unresolvedMedium * 5))
-            .coerceIn(0, 100)
-        
-        _uiState.update { it.copy(securityScore = score) }
+        try {
+            val events = _uiState.value.allEvents
+            val unresolvedCritical = events.count { !it.isResolved && it.threatLevel == ThreatLevel.CRITICAL }
+            val unresolvedHigh = events.count { !it.isResolved && it.threatLevel == ThreatLevel.HIGH }
+            val unresolvedMedium = events.count { !it.isResolved && it.threatLevel == ThreatLevel.MEDIUM }
+            
+            val score = (100 - (unresolvedCritical * 25) - (unresolvedHigh * 15) - (unresolvedMedium * 5))
+                .coerceIn(0, 100)
+            
+            _uiState.update { it.copy(securityScore = score) }
+        } catch (e: Exception) {
+            Log.e("ShadowShield", "Error updating security score: ${e.message}")
+        }
     }
 }
 
@@ -123,3 +174,4 @@ data class ShieldUiState(
     val deepfakeShieldEnabled: Boolean = false,
     val telemetryEnabled: Boolean = true
 )
+
