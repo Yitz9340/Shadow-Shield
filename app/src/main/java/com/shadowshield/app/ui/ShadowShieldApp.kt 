@@ -1,0 +1,111 @@
+package com.shadowshield.app.ui
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.shadowshield.app.ui.screens.*
+import com.shadowshield.app.ui.theme.ShadowShieldTheme
+
+sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Dashboard)
+    object Events : Screen("events", "Events", Icons.Default.Warning)
+    object Apps : Screen("apps", "Apps", Icons.Default.Apps)
+    object Settings : Screen("settings", "Settings", Icons.Default.Settings)
+}
+
+val screens = listOf(Screen.Dashboard, Screen.Events, Screen.Apps, Screen.Settings)
+
+@Composable
+fun ShadowShieldApp(viewModel: ShieldViewModel = viewModel()) {
+    val navController = rememberNavController()
+    val uiState by viewModel.uiState.collectAsState()
+    
+    ShadowShieldTheme {
+        Scaffold(
+            bottomBar = {
+                NavigationBar(
+                    containerColor = Color(0xFF0A1929)
+                ) {
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentDestination = navBackStackEntry?.destination
+                    
+                    screens.forEach { screen ->
+                        NavigationBarItem(
+                            icon = { Icon(screen.icon, contentDescription = screen.label) },
+                            label = { Text(screen.label) },
+                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFF00E5FF),
+                                selectedTextColor = Color(0xFF00E5FF),
+                                unselectedIconColor = Color.White.copy(alpha = 0.5f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.5f),
+                                indicatorColor = Color(0xFF00E5FF).copy(alpha = 0.2f)
+                            )
+                        )
+                    }
+                }
+            }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Dashboard.route,
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                composable(Screen.Dashboard.route) {
+                    DashboardScreen(
+                        activeThreats = uiState.activeThreats,
+                        monitoredApps = uiState.monitoredApps,
+                        securityScore = uiState.securityScore,
+                        recentEvents = uiState.recentEvents,
+                        isProtectionActive = uiState.isProtectionActive,
+                        onToggleProtection = { viewModel.toggleProtection() }
+                    )
+                }
+                composable(Screen.Events.route) {
+                    EventsScreen(
+                        events = uiState.allEvents,
+                        onResolveEvent = { viewModel.resolveEvent(it) },
+                        onBlockApp = { viewModel.blockApp(it) }
+                    )
+                }
+                composable(Screen.Apps.route) {
+                    AppsScreen()
+                }
+                composable(Screen.Settings.route) {
+                    SettingsScreen(
+                        monitoringEnabled = uiState.monitoringEnabled,
+                        deepScanEnabled = uiState.deepScanEnabled,
+                        nfcGuardEnabled = uiState.nfcGuardEnabled,
+                        deepfakeShieldEnabled = uiState.deepfakeShieldEnabled,
+                        telemetryEnabled = uiState.telemetryEnabled,
+                        onMonitoringChange = { viewModel.setMonitoring(it) },
+                        onDeepScanChange = { viewModel.setDeepScan(it) },
+                        onNfcGuardChange = { viewModel.setNfcGuard(it) },
+                        onDeepfakeShieldChange = { viewModel.setDeepfakeShield(it) },
+                        onTelemetryChange = { viewModel.setTelemetry(it) }
+                    )
+                }
+            }
+        }
+    }
+}
