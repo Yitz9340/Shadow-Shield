@@ -22,19 +22,10 @@ jobs:
       run: |
         wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
         unzip -q gradle-8.5-bin.zip
-        export PATH=$PATH:$(pwd)/gradle-8.5/bin
         echo "$(pwd)/gradle-8.5/bin" >> $GITHUB_PATH
 
-    - name: Check files exist
-      run: |
-        echo "=== Checking critical files ==="
-        ls -la build.gradle || echo "MISSING: build.gradle"
-        ls -la settings.gradle || echo "MISSING: settings.gradle"
-        ls -la app/build.gradle || echo "MISSING: app/build.gradle"
-        echo "=== Done ==="
-
     - name: Build with Gradle
-      run: gradle assembleDebug --stacktrace
+      run: gradle assembleDebug --stacktrace --no-build-cache
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
