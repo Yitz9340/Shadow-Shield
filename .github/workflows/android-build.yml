@@ -23,7 +23,7 @@ jobs:
         curl -L -o gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar
         printf '%s\n' '#!/bin/sh' 'APP_HOME=`dirname "$0"`' 'CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar' 'exec "$JAVA_HOME/bin/java" -Xmx512m -Xms128m -Dorg.gradle.appname=gradlew -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"' > gradlew
         chmod +x gradlew
-        echo "=== gradlew contents ===" && cat gradlew
+        printf '%s\n' 'distributionBase=GRADLE_USER_HOME' 'distributionPath=wrapper/dists' 'distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip' 'networkTimeout=10000' 'validateDistributionUrl=true' 'zipStoreBase=GRADLE_USER_HOME' 'zipStorePath=wrapper/dists' > gradle/wrapper/gradle-wrapper.properties
 
     - name: Build with Gradle
       run: ./gradlew assembleDebug --stacktrace --no-build-cache
