@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -19,9 +20,10 @@ jobs:
         distribution: 'temurin'
 
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: 8.5
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Make gradlew executable
+      run: chmod +x ./gradlew
 
     - name: Check files exist
       run: |
@@ -29,10 +31,11 @@ jobs:
         ls -la build.gradle || echo "MISSING: build.gradle"
         ls -la settings.gradle || echo "MISSING: settings.gradle"
         ls -la app/build.gradle || echo "MISSING: app/build.gradle"
+        ls -la gradlew || echo "MISSING: gradlew"
         echo "=== Done ==="
 
     - name: Build with Gradle
-      run: gradle assembleDebug --stacktrace
+      run: ./gradlew assembleDebug --stacktrace
       env:
         GRADLE_OPTS: -Dorg.gradle.daemon=false
 
