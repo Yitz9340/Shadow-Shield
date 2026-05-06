@@ -58,3 +58,7 @@ jobs:
           name: ShadowShield-APK
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
+- name: Get APK download URL
+  run: |
+    echo "APK is available at:"
+    echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts"
