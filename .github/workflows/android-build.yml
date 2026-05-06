@@ -22,7 +22,11 @@ jobs:
       run: |
         curl -L -o gradle/wrapper/gradle-wrapper.jar \
           https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar
-        sed -i 's|DEFAULT_JVM_OPTS=.*|DEFAULT_JVM_OPTS="-Xmx512m -Xms128m"|' gradlew
+        python3 -c "
+        content = open('gradlew', 'rb').read().decode('utf-8-sig')
+        content = content.replace('''DEFAULT_JVM_OPTS='\"-Xmx64m\" \"-Xms64m\"' '''.strip(), 'DEFAULT_JVM_OPTS=\"-Xmx512m -Xms128m\"')
+        open('gradlew', 'w', newline='\n').write(content)
+        "
         chmod +x gradlew
 
     - name: Build with Gradle
