@@ -2,15 +2,3 @@
 <resources>
     <color name="ic_launcher_background">#1A1A2E</color>
 </resources>
-    <color name="shield_primary">#00E5FF</color>
-    <color name="shield_primary_dark">#00B8D4</color>
-    <color name="shield_secondary">#FF4081</color>
-    <color name="shield_surface">#0A1929</color>
-    <color name="shield_surface_variant">#132F4C</color>
-    <color name="shield_background">#001E3C</color>
-    <color name="threat_critical">#FF1744</color>
-    <color name="threat_high">#FF9100</color>
-    <color name="threat_medium">#FFD600</color>
-    <color name="threat_low">#00E676</color>
-    <color name="threat_safe">#00E5FF</color>
-</resources>
