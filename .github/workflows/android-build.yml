@@ -22,28 +22,24 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Gradle wrapper (if missing)
-        # This step only runs if gradlew doesn't exist or is broken.
-        # Ideally, you would have committed the wrapper; this is a fallback.
+      - name: Setup Gradle wrapper (only if missing)
         run: |
           if [ ! -f gradlew ]; then
             mkdir -p gradle/wrapper
             curl -L -o gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar
-            cat > gradlew << 'EOF'
-            #!/bin/sh
-            DEFAULT_JVM_OPTS=""
-            APP_NAME="Gradle"
-            CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
-            exec "$JAVA_HOME/bin/java" $DEFAULT_JVM_OPTS -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
-            EOF
+            
+            # Write gradlew using echo to avoid heredoc issues
+            echo '#!/bin/sh' > gradlew
+            echo 'CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar' >> gradlew
+            echo 'exec "$JAVA_HOME/bin/java" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"' >> gradlew
             chmod +x gradlew
-            cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
-            distributionBase=GRADLE_USER_HOME
-            distributionPath=wrapper/dists
-            distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
-            zipStoreBase=GRADLE_USER_HOME
-            zipStorePath=wrapper/dists
-            EOF
+            
+            # Write gradle-wrapper.properties
+            echo 'distributionBase=GRADLE_USER_HOME' > gradle/wrapper/gradle-wrapper.properties
+            echo 'distributionPath=wrapper/dists' >> gradle/wrapper/gradle-wrapper.properties
+            echo 'distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip' >> gradle/wrapper/gradle-wrapper.properties
+            echo 'zipStoreBase=GRADLE_USER_HOME' >> gradle/wrapper/gradle-wrapper.properties
+            echo 'zipStorePath=wrapper/dists' >> gradle/wrapper/gradle-wrapper.properties
           fi
 
       - name: Cache Gradle
