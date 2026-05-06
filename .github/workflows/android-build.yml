@@ -18,17 +18,21 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle wrapper
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.5'
+
+    - name: Download wrapper jar
       run: |
         mkdir -p gradle/wrapper
         curl -L -o gradle/wrapper/gradle-wrapper.jar \
           https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar
-        printf 'distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.5-bin.zip\nnetworkTimeout=10000\nvalidateDistributionUrl=true\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\n' > gradle/wrapper/gradle-wrapper.properties
-        printf '#!/bin/sh\nAPP_HOME=$(dirname "$0")\nCLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"\nexec "$JAVA_HOME/bin/java" -Xmx512m -Xms128m "-Dorg.gradle.appname=gradle" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"\n' > gradlew
         chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew assembleDebug --stacktrace --no-build-cache
+      run: gradle assembleDebug --stacktrace --no-build-cache
+      working-directory: ${{ github.workspace }}
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
