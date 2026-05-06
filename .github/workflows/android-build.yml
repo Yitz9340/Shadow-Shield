@@ -21,8 +21,18 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
 
-    - name: Make gradlew executable
-      run: chmod +x ./gradlew
+    - name: Fix gradlew
+      run: |
+        cat > gradlew << 'GRADLEW_EOF'
+        #!/bin/sh
+        APP_HOME=$(dirname "$0")
+        CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+        exec "$JAVA_HOME/bin/java" -Xmx512m -Xms128m \
+          "-Dorg.gradle.appname=gradle" \
+          -classpath "$CLASSPATH" \
+          org.gradle.wrapper.GradleWrapperMain "$@"
+        GRADLEW_EOF
+        chmod +x gradlew
 
     - name: Check files exist
       run: |
@@ -42,4 +52,3 @@ jobs:
         name: ShadowShield-APK
         path: app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
-
