@@ -18,9 +18,15 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    - name: Download Gradle wrapper jar
+      run: |
+        mkdir -p gradle/wrapper
+        curl -L -o gradle/wrapper/gradle-wrapper.jar \
+          https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar
+
     - name: Fix gradlew
       run: |
-        cat > gradlew << 'GRADLEW_EOF'
+        cat > gradlew << 'EOF'
         #!/bin/sh
         APP_HOME=$(dirname "$0")
         CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
@@ -28,7 +34,7 @@ jobs:
           "-Dorg.gradle.appname=gradle" \
           -classpath "$CLASSPATH" \
           org.gradle.wrapper.GradleWrapperMain "$@"
-        GRADLEW_EOF
+        EOF
         chmod +x gradlew
 
     - name: Build with Gradle
